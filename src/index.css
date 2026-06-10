@@ -44,10 +44,11 @@ body {
   font-size: 1.35rem !important; /* from 20px to ~21.6px */
 }
 
-/* Elegant Rice Paper Cultural Texture */
+/* Modern subtle background */
 .bg-cultural-canvas {
-  background-color: #fdfdfb;
-  background-image: url('https://www.transparenttextures.com/patterns/rice-paper-2.png');
+  background-color: #f8fafc;
+  background-image: radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0);
+  background-size: 28px 28px;
 }
 
 /* React Flow Customize and elegant grid */

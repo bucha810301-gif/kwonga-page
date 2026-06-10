@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, Edit3, Trash2, Heart, User, ChevronRight, MessageSquareOff } from 'lucide-react';
+import { X, Calendar, Edit3, Trash2, Heart, User, ChevronRight, Link2Off } from 'lucide-react';
 import { FamilyMember, Relationship } from '../types';
 
 interface DetailPanelProps {
@@ -10,263 +10,253 @@ interface DetailPanelProps {
   isAdmin: boolean;
   onEdit: (member: FamilyMember) => void;
   onDelete: (memberId: string) => void;
-  onSelectMember: (member: FamilyMember) => void; // Click to jump to relationship relative
+  onDeleteRelationship: (relationshipId: string) => void;
+  onSelectMember: (member: FamilyMember) => void;
 }
 
-export function DetailPanel({
+function RelativeRow({
   member,
-  onClose,
-  relationships,
-  allMembers,
+  onClick,
+  icon,
   isAdmin,
-  onEdit,
-  onDelete,
-  onSelectMember
-}: DetailPanelProps) {
+  onDeleteRel,
+}: {
+  member: FamilyMember;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  isAdmin: boolean;
+  onDeleteRel: () => void;
+  [key: string]: any;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={onClick}
+        className="flex-1 flex items-center justify-between p-2.5 text-left text-xs rounded-xl border border-slate-100 hover:border-[#c5a059]/40 hover:bg-amber-50/30 transition-all cursor-pointer bg-slate-50/50"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <div>
+            <span className="font-semibold text-slate-800">{member.name}</span>
+            {member.isExternalSpouse
+              ? <span className="text-slate-400 ml-1.5">{member.surname || '외성'}</span>
+              : <span className="text-slate-400 ml-1.5">{member.generation}대</span>
+            }
+          </div>
+        </div>
+        <ChevronRight size={13} className="text-slate-300" />
+      </button>
+      {isAdmin && (
+        <button
+          onClick={onDeleteRel}
+          title="관계 삭제"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer shrink-0"
+        >
+          <Link2Off size={13} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function DetailPanel({ member, onClose, relationships, allMembers, isAdmin, onEdit, onDelete, onDeleteRelationship, onSelectMember }: DetailPanelProps) {
   if (!member) return null;
 
-  // Find relationships for this member
-  const parents = relationships
-    .filter(r => r.type === 'parent_child' && r.toMemberId === member.id)
-    .map(r => allMembers.find(m => m.id === r.fromMemberId))
-    .filter((m): m is FamilyMember => !!m);
+  const parentRels = relationships.filter(r => r.type === 'parent_child' && r.toMemberId === member.id);
+  const parents = parentRels
+    .map(r => ({ rel: r, m: allMembers.find(m => m.id === r.fromMemberId) }))
+    .filter((x): x is { rel: Relationship; m: FamilyMember } => !!x.m);
 
-  const children = relationships
-    .filter(r => r.type === 'parent_child' && r.fromMemberId === member.id)
-    .map(r => allMembers.find(m => m.id === r.toMemberId))
-    .filter((m): m is FamilyMember => !!m);
+  const childRels = relationships.filter(r => r.type === 'parent_child' && r.fromMemberId === member.id);
+  const children = childRels
+    .map(r => ({ rel: r, m: allMembers.find(m => m.id === r.toMemberId) }))
+    .filter((x): x is { rel: Relationship; m: FamilyMember } => !!x.m);
 
-  const spouses = relationships
-    .filter(r => r.type === 'spouse' && (r.fromMemberId === member.id || r.toMemberId === member.id))
-    .map(r => {
-      const spouseId = r.fromMemberId === member.id ? r.toMemberId : r.fromMemberId;
-      return allMembers.find(m => m.id === spouseId);
-    })
-    .filter((m): m is FamilyMember => !!m);
+  const spouseRels = relationships.filter(r => r.type === 'spouse' && (r.fromMemberId === member.id || r.toMemberId === member.id));
+  const spouses = spouseRels
+    .map(r => ({ rel: r, m: allMembers.find(m => m.id === (r.fromMemberId === member.id ? r.toMemberId : r.fromMemberId)) }))
+    .filter((x): x is { rel: Relationship; m: FamilyMember } => !!x.m);
 
-  const siblings = relationships
-    .filter(r => r.type === 'sibling' && (r.fromMemberId === member.id || r.toMemberId === member.id))
-    .map(r => {
-      const siblingId = r.fromMemberId === member.id ? r.toMemberId : r.fromMemberId;
-      return allMembers.find(m => m.id === siblingId);
-    })
-    .filter((m): m is FamilyMember => !!m);
+  const siblingRels = relationships.filter(r => r.type === 'sibling' && (r.fromMemberId === member.id || r.toMemberId === member.id));
+  const siblings = siblingRels
+    .map(r => ({ rel: r, m: allMembers.find(m => m.id === (r.fromMemberId === member.id ? r.toMemberId : r.fromMemberId)) }))
+    .filter((x): x is { rel: Relationship; m: FamilyMember } => !!x.m);
 
-  const isDeceased = member.isDeceased;
+  const genderLabel = member.gender === 'male' ? '남성' : member.gender === 'female' ? '여성' : '미상';
+  const genderColor = member.gender === 'male' ? '#3b82f6' : member.gender === 'female' ? '#f43f5e' : '#94a3b8';
+
+  const handleDeleteRel = (rel: Relationship) => {
+    if (!confirm('이 관계를 삭제할까요?')) return;
+    onDeleteRelationship(rel.id);
+  };
 
   return (
-    <div className={`fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-slate-200 z-50 transform transition-transform duration-300 ease-in-out ${
-      member ? 'translate-x-0' : 'translate-x-full'
-    } flex flex-col`}>
-      {/* Elegant Cultural Header including Profile Info */}
-      <div className="p-6 bg-cultural-navy text-white flex flex-col shrink-0 border-b-4 border-cultural-gold">
+    <div className="fixed top-0 right-0 h-full w-88 bg-white shadow-2xl border-l border-slate-100 z-50 flex flex-col"
+      style={{ width: '360px', transform: member ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.3s ease' }}
+    >
+      {/* Header */}
+      <div className="p-5 border-b border-slate-100 shrink-0" style={{ background: 'linear-gradient(135deg, #0f172a, #1e3a5f)' }}>
         <div className="flex justify-between items-start mb-4">
-          <h3 className="font-serif font-bold text-sm tracking-wide flex items-center space-x-2">
-            <span className="text-cultural-gold font-semibold">族譜 詳情</span>
-            <span className="text-white/70 text-xs">(족보 상세 정보)</span>
-          </h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-[#162a45] rounded-full transition text-slate-300 hover:text-white cursor-pointer"
-          >
-            <X size={18} />
+          <span className="text-xs font-medium text-slate-400">상세 정보</span>
+          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition text-slate-400 hover:text-white cursor-pointer">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="relative shrink-0">
-            {member.photoUrl ? (
-              <img
-                src={member.photoUrl}
-                alt={member.name}
-                referrerPolicy="no-referrer"
-                className={`w-16 h-16 rounded-xl object-cover border-2 shadow-md ${
-                  isDeceased ? 'border-slate-300 grayscale' : 'border-white/20'
-                }`}
-              />
-            ) : (
-              <div
-                className={`w-16 h-16 rounded-xl flex items-center justify-center border-2 ${
-                  member.gender === 'male'
-                    ? 'bg-blue-50/10 text-blue-200 border-white/10'
-                    : member.gender === 'female'
-                    ? 'bg-rose-50/10 text-rose-200 border-white/10'
-                    : 'bg-white/10 text-slate-300 border-white/10'
-                }`}
-              >
-                <User size={30} />
-              </div>
-            )}
-            {/* Generation Badge */}
-            <span className="absolute -bottom-1 -right-1 bg-cultural-gold text-white border border-white/30 text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-xs">
-              {member.generation}代
-            </span>
-          </div>
+        <div className="flex items-center gap-3">
+          {member.photoUrl ? (
+            <img src={member.photoUrl} alt={member.name} referrerPolicy="no-referrer"
+              className={`w-14 h-14 rounded-xl object-cover border-2 border-white/10 ${member.isDeceased ? 'grayscale' : ''}`}
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center border border-white/10 bg-white/5">
+              <User size={24} className="text-slate-400" />
+            </div>
+          )}
 
           <div>
-            <h2 className="text-lg font-bold font-serif tracking-wider text-white">{member.name}</h2>
-            <div className="flex items-center space-x-2 mt-1.5 text-[10px]">
-              <span className={`px-2 py-0.5 rounded-full font-medium ${
-                member.gender === 'male' ? 'bg-blue-500/20 text-blue-200' : member.gender === 'female' ? 'bg-rose-500/20 text-rose-200' : 'bg-slate-500/20 text-slate-300'
-              }`}>
-                {member.gender === 'male' ? '남성 (男)' : member.gender === 'female' ? '여성 (女)' : '성별 미상'}
+            <h2 className="text-base font-bold text-white">{member.name}</h2>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                style={{ background: `${genderColor}20`, color: genderColor, border: `1px solid ${genderColor}30` }}
+              >
+                {genderLabel}
               </span>
-              <span className={`px-2 py-0.5 rounded-full font-medium ${
-                isDeceased ? 'bg-slate-500/30 text-slate-300' : 'bg-emerald-550/20 text-emerald-200'
-              }`}>
-                {isDeceased ? '고인 (卒)' : '생존(生存)'}
-              </span>
+              {member.isDeceased && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: 'rgba(100,116,139,0.2)', color: '#94a3b8' }}
+                >
+                  고인
+                </span>
+              )}
+              {member.isExternalSpouse ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: 'rgba(160,120,48,0.2)', color: '#a07830' }}
+                >
+                  {member.surname || '외성'} 배우자
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-full">
+                  {member.generation}대
+                </span>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Container */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        
-        {/* Life dates and bio details */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold text-slate-700 border-l-4 border-cultural-gold pl-2 tracking-wider font-serif uppercase">세목정보 (상세 정보)</h4>
-          <div className="bg-[#fdfdfb] border border-slate-200/50 rounded-xl p-4 space-y-3.5 text-xs">
-            <div className="flex items-center space-x-3 text-slate-600">
-              <Calendar size={15} className="text-slate-400" />
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+        {/* Basic Info */}
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">기본 정보</p>
+          <div className="bg-slate-50 rounded-xl p-4 space-y-3 text-xs">
+            <div className="flex items-start gap-2.5 text-slate-600">
+              <Calendar size={13} className="text-slate-400 mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold text-slate-700">생년월일 (出生)</p>
-                <p className="text-slate-600 mt-0.5">{member.birthDate || '기록 없음'}</p>
+                <p className="text-slate-400 text-[10px]">생년월일</p>
+                <p className="font-medium text-slate-700 mt-0.5">{member.birthDate || '기록 없음'}</p>
               </div>
             </div>
-            
-            {isDeceased && (
-              <div className="flex items-center space-x-3 text-slate-600">
-                <Calendar size={15} className="text-rose-400" />
+
+            {member.isDeceased && (
+              <div className="flex items-start gap-2.5 text-slate-600">
+                <Calendar size={13} className="text-rose-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-semibold text-rose-700">사망년월일 (卒去)</p>
-                  <p className="text-slate-600 mt-0.5">{member.deathDate || '기록 없음 (고인)'}</p>
+                  <p className="text-rose-400 text-[10px]">사망일</p>
+                  <p className="font-medium text-slate-700 mt-0.5">{member.deathDate || '기록 없음'}</p>
                 </div>
               </div>
             )}
 
             {member.memo && (
-              <div className="border-t border-slate-200/60 pt-3 mt-2">
-                <p className="font-semibold text-slate-700 mb-1">인적 사적 (메모)</p>
-                <p className="text-slate-600 whitespace-pre-wrap leading-relaxed bg-white/60 p-2.5 rounded-lg border border-slate-100">
-                  {member.memo}
-                </p>
+              <div className="border-t border-slate-200 pt-3">
+                <p className="text-slate-400 text-[10px] mb-1">메모</p>
+                <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{member.memo}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Relatives list */}
+        {/* Family Relations */}
         <div className="space-y-4">
-          <h4 className="text-xs font-bold text-slate-700 border-l-4 border-cultural-gold pl-2 tracking-wider font-serif uppercase">가족관계 (直系 關係)</h4>
-          
-          {/* Spouses */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">배우자 (配偶子)</p>
-            {spouses.length > 0 ? (
-              <div className="grid grid-cols-1 gap-1.5">
-                {spouses.map(sp => (
-                  <button
-                    key={sp.id}
-                    onClick={() => onSelectMember(sp)}
-                    className="flex items-center justify-between p-2.5 text-left text-xs text-slate-700 bg-[#fdfdfb]/55 border border-slate-200 hover:border-cultural-gold/50 rounded-lg transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Heart size={13} className="text-rose-500" fill="currentColor" />
-                      <span className="font-semibold font-serif text-slate-800">{sp.name}</span>
-                    </div>
-                    <ChevronRight size={13} className="text-slate-400" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">기록된 배우자가 없습니다.</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">가족 관계</p>
+            {isAdmin && (
+              <span className="text-[9px] text-slate-400 flex items-center gap-1">
+                <Link2Off size={10} /> 아이콘으로 관계 삭제
+              </span>
             )}
           </div>
 
-          {/* Parents */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">부모 (父母)</p>
-            {parents.length > 0 ? (
-              <div className="grid grid-cols-1 gap-1.5">
-                {parents.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => onSelectMember(p)}
-                    className="flex items-center justify-between p-2.5 text-left text-xs text-slate-700 bg-[#fdfdfb]/55 border border-slate-200 hover:border-cultural-gold/50 rounded-lg transition-all cursor-pointer"
-                  >
-                    <span className="font-semibold font-serif text-slate-800">{p.name} ({p.generation}代)</span>
-                    <ChevronRight size={13} className="text-slate-400" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">기록된 부모가 없습니다.</p>
-            )}
-          </div>
+          {spouses.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-slate-500">배우자</p>
+              {spouses.map(({ rel, m }) => (
+                <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
+                  icon={<Heart size={11} className="text-rose-400" fill="currentColor" />}
+                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                />
+              ))}
+            </div>
+          )}
 
-          {/* Children */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">자녀 (子女)</p>
-            {children.length > 0 ? (
-              <div className="grid grid-cols-1 gap-1.5">
-                {children.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => onSelectMember(c)}
-                    className="flex items-center justify-between p-2.5 text-left text-xs text-slate-700 bg-[#fdfdfb]/55 border border-slate-200 hover:border-cultural-gold/50 rounded-lg transition-all cursor-pointer"
-                  >
-                    <span className="font-semibold font-serif text-slate-800">{c.name} ({c.generation}代)</span>
-                    <ChevronRight size={13} className="text-slate-400" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">기록된 자녀가 없습니다.</p>
-            )}
-          </div>
+          {parents.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-slate-500">부모</p>
+              {parents.map(({ rel, m }) => (
+                <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
+                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                />
+              ))}
+            </div>
+          )}
 
-          {/* Siblings */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">형제자매 (兄弟姉妹)</p>
-            {siblings.length > 0 ? (
-              <div className="grid grid-cols-1 gap-1.5">
-                {siblings.map(sib => (
-                  <button
-                    key={sib.id}
-                    onClick={() => onSelectMember(sib)}
-                    className="flex items-center justify-between p-2.5 text-left text-xs text-slate-700 bg-[#fdfdfb]/55 border border-slate-200 hover:border-cultural-gold/50 rounded-lg transition-all cursor-pointer"
-                  >
-                    <span className="font-semibold font-serif text-slate-800">{sib.name} ({sib.generation}代)</span>
-                    <ChevronRight size={13} className="text-slate-400" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">기록된 형제자매가 없습니다.</p>
-            )}
-          </div>
+          {children.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-slate-500">자녀 ({children.length}명)</p>
+              {children.map(({ rel, m }) => (
+                <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
+                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                />
+              ))}
+            </div>
+          )}
+
+          {siblings.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-slate-500">형제자매</p>
+              {siblings.map(({ rel, m }) => (
+                <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
+                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                />
+              ))}
+            </div>
+          )}
+
+          {spouses.length === 0 && parents.length === 0 && children.length === 0 && siblings.length === 0 && (
+            <p className="text-xs text-slate-400 py-2">등록된 가족 관계가 없습니다.</p>
+          )}
         </div>
       </div>
 
-      {/* Admin Action Bar */}
+      {/* Admin actions */}
       {isAdmin && (
-        <div className="p-5 bg-slate-50 border-t border-slate-200/60 flex flex-col space-y-2 shrink-0">
+        <div className="p-4 border-t border-slate-100 flex gap-2 shrink-0 bg-slate-50/50">
           <button
             onClick={() => onEdit(member)}
-            className="w-full bg-cultural-navy text-white py-2.5 rounded-lg font-bold text-xs hover:bg-[#203f69] transition-all shadow-md flex items-center justify-center space-x-1.5 cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
           >
             <Edit3 size={13} />
-            <span>생애 단장 (기록 수정)</span>
+            <span>정보 수정</span>
           </button>
-          
           <button
             onClick={() => onDelete(member.id)}
-            className="w-full border border-slate-250 text-slate-500 py-2 rounded-lg font-semibold text-xs hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-500 border border-slate-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer"
           >
             <Trash2 size={13} />
-            <span>기록 공제 (기록 삭제)</span>
           </button>
         </div>
       )}

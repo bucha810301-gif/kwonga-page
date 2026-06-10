@@ -44,8 +44,8 @@ export function layoutFamilyTree(
   for (const gen of generations) {
     const genMembers = generationGroups[gen];
     let currentX = 0;
-    const spacingX = 260; // Space between nodes/couples
-    const spouseOffset = 240; // Offset between spouses
+    const spacingX = 340; // Space between nodes/couples
+    const spouseOffset = 300; // Offset between spouses
 
     const visitedInGen = new Set<string>();
 
@@ -65,7 +65,7 @@ export function layoutFamilyTree(
         relationDocId = spouseRelation.id;
       }
 
-      const posY = (gen - 1) * 220 + 80;
+      const posY = (gen - 1) * 260 + 80;
 
       // Position first member
       const memberX = currentX;
@@ -105,8 +105,8 @@ export function layoutFamilyTree(
           type: 'straight',
           animated: false,
           style: { stroke: '#f43f5e', strokeWidth: 2, strokeDasharray: '5,5' },
-          label: '夫婦',
-          labelStyle: { fill: '#be123c', fontSize: 10, fontFamily: 'serif', fontWeight: 'bold' }
+          label: '배우자',
+          labelStyle: { fill: '#be123c', fontSize: 10, fontWeight: 'bold' }
         });
 
         currentX += spouseOffset + spacingX;
@@ -129,8 +129,8 @@ export function layoutFamilyTree(
         id: `edge-pc-${pc.id}`,
         source: parent.id,
         target: child.id,
-        sourceHandle: null, // Default bottom handle
-        targetHandle: null, // Default top handle
+        sourceHandle: 'conn',
+        targetHandle: null,
         type: 'smoothstep',
         animated: false,
         style: { stroke: '#1e3a5f', strokeWidth: 2 },

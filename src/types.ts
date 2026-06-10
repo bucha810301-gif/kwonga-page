@@ -16,6 +16,8 @@ export interface FamilyMember {
   photoUrl?: string;
   memo?: string;
   isDeceased: boolean;
+  isExternalSpouse?: boolean;
+  surname?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

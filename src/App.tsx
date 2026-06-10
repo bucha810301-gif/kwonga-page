@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ReactFlow,
   MiniMap,
-  Controls,
+  Panel,
   Background,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   Edge,
-  Node
+  Node,
+  Connection
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -19,7 +21,7 @@ import {
   updateFamilyMember,
   deleteFamilyMember,
   addRelationship,
-  seedInitialClanData,
+  deleteRelationship,
   getLocalMembers,
   getLocalRelations
 } from './services/familyService';
@@ -30,39 +32,128 @@ import { LoginView } from './components/LoginView';
 import { FamilyNode } from './components/FamilyNode';
 import { DetailPanel } from './components/DetailPanel';
 import { MemberModal } from './components/MemberModal';
-import { AdminPanel } from './components/AdminPanel';
+import { ConnectModal } from './components/ConnectModal';
 
-import { Plus, HelpCircle, Users, Activity, Sparkles, BookOpen } from 'lucide-react';
+import { Plus, Minus, Maximize2, BookOpen } from 'lucide-react';
 
-const nodeTypes = {
-  familyNode: FamilyNode
-};
+const nodeTypes = { familyNode: FamilyNode };
+
+// Inner component that can use useReactFlow hook (must be inside ReactFlow context)
+function FlowControls({ isAdmin, onAddMember }: { isAdmin: boolean; onAddMember: () => void }) {
+  const { fitView, zoomIn, zoomOut } = useReactFlow();
+
+  return (
+    <>
+      {/* Bottom-left: usage guide + zoom controls stacked, no overlap */}
+      <Panel position="bottom-left">
+        <div className="flex flex-col gap-2 m-3">
+          {/* Usage guide */}
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl border border-slate-200 shadow-md p-3 pointer-events-none select-none" style={{ maxWidth: 200 }}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex gap-1.5">
+                <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 남성
+                </span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" /> 여성
+                </span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                  <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" /> 고인
+                </span>
+              </div>
+            </div>
+            <div className="space-y-0.5 text-[10px] text-slate-400">
+              <p>• 카드 클릭 → 상세 정보</p>
+              <p>• 스크롤 → 줌인 / 줌아웃</p>
+              <p>• 드래그 → 화면 이동</p>
+              {isAdmin && (
+                <p>• 핸들 드래그 → 관계 연결</p>
+              )}
+            </div>
+          </div>
+
+          {/* Zoom buttons */}
+          <div className="flex gap-1.5 pointer-events-auto">
+            <button
+              onClick={() => zoomIn()}
+              className="w-8 h-8 bg-white rounded-lg border border-slate-200 shadow-sm flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:shadow-md transition cursor-pointer"
+              title="줌 인"
+            >
+              <Plus size={14} />
+            </button>
+            <button
+              onClick={() => zoomOut()}
+              className="w-8 h-8 bg-white rounded-lg border border-slate-200 shadow-sm flex items-center justify-center text-slate-600 hover:bg-slate-50 hover:shadow-md transition cursor-pointer"
+              title="줌 아웃"
+            >
+              <Minus size={14} />
+            </button>
+          </div>
+        </div>
+      </Panel>
+
+      {/* Bottom-right: fit view + add member, stacked vertically */}
+      <Panel position="bottom-right">
+        <div className="flex flex-col gap-2 items-end m-3 pointer-events-auto">
+          {isAdmin && (
+            <button
+              onClick={onAddMember}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-white rounded-xl shadow-lg text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+              style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
+            >
+              <Plus size={14} />
+              <span>새 가족 등록</span>
+            </button>
+          )}
+          <button
+            onClick={() => fitView({ padding: 0.15, duration: 400 })}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm text-xs font-medium text-slate-600 hover:bg-slate-50 hover:shadow-md transition cursor-pointer"
+          >
+            <Maximize2 size={13} />
+            <span>전체 뷰</span>
+          </button>
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+// Zooms to a single highlighted node (must be inside ReactFlow context)
+function SearchFitter({ targetId }: { targetId: string | null }) {
+  const { fitView } = useReactFlow();
+  const prevId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!targetId || targetId === prevId.current) return;
+    prevId.current = targetId;
+    const timer = setTimeout(() => {
+      fitView({
+        nodes: [{ id: targetId }],
+        padding: 0.6,
+        duration: 550,
+        maxZoom: 1.8,
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [targetId, fitView]);
+
+  return null;
+}
 
 export default function App() {
-  // Auth state
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
-
-  // Active view
-  const [currentView, setView] = useState<'tree' | 'admin'>('tree');
-
-  // Biography DB States (Initialized with localStorage fast caches for instant load)
   const [members, setMembers] = useState<FamilyMember[]>(() => getLocalMembers());
   const [relationships, setRelationships] = useState<Relationship[]>(() => getLocalRelations());
   const [loading, setLoading] = useState(false);
-
-  // Layout-calculated visual nodes and edges
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-  // Selected relative and modal triggers
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<FamilyMember | null>(null);
-
-  // Search Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const [pendingConnection, setPendingConnection] = useState<{ source: string; target: string } | null>(null);
+  const [currentResultIndex, setCurrentResultIndex] = useState(0);
 
-  // 1. Fetch entire family records
   const loadData = useCallback(async () => {
     if (!userProfile) return;
     setLoading(true);
@@ -74,118 +165,131 @@ export default function App() {
       setMembers(membersList);
       setRelationships(relationsList);
     } catch (err) {
-      console.error('기록 로드 실패: ', err);
+      console.error('데이터 로드 실패:', err);
     } finally {
       setLoading(false);
     }
   }, [userProfile]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  // 2. Generate tree positions dynamically when raw data or search query updates
+  const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
+
   useEffect(() => {
     const { nodes: rawNodes, edges: rawEdges } = layoutFamilyTree(members, relationships);
-
-    // If query exists, highlight matching elements
     const trimmedQuery = searchQuery.trim().toLowerCase();
+
+    const matched: string[] = [];
     const finalNodes = rawNodes.map((n: any) => {
       const member = n.data.member as FamilyMember;
-      let isHighlighted = false;
-
-      if (trimmedQuery.length > 0) {
-        const matchesName = member.name.toLowerCase().includes(trimmedQuery);
-        const matchesGen = member.generation.toString() === trimmedQuery ||
-                           `${member.generation}대` === trimmedQuery ||
-                           `${member.generation}代` === trimmedQuery;
-        isHighlighted = matchesName || matchesGen;
-      }
-
+      const isHighlighted = trimmedQuery.length > 0 && (
+        member.name.toLowerCase().includes(trimmedQuery) ||
+        member.generation.toString() === trimmedQuery ||
+        `${member.generation}대` === trimmedQuery
+      );
+      if (isHighlighted) matched.push(member.id);
       return {
         ...n,
         data: {
           ...n.data,
           isHighlighted,
-          onSelect: (selected: FamilyMember) => {
-            setSelectedMember(selected);
-          }
+          isAdmin: userProfile?.role === 'admin',
+          onSelect: (selected: FamilyMember) => setSelectedMember(selected)
         }
       };
     });
 
+    // Sort matched IDs by generation descending (highest gen = most recent, shown first)
+    const sortedIds = matched.sort((a, b) => {
+      const genA = members.find(m => m.id === a)?.generation ?? 0;
+      const genB = members.find(m => m.id === b)?.generation ?? 0;
+      return genB - genA;
+    });
+
     setNodes(finalNodes);
     setEdges(rawEdges);
+    setHighlightedIds(prev => {
+      const prevKey = prev.join(',');
+      const nextKey = sortedIds.join(',');
+      if (prevKey !== nextKey) setCurrentResultIndex(0);
+      return sortedIds;
+    });
   }, [members, relationships, searchQuery, setNodes, setEdges]);
 
-  // Seeding initial Younggwang genealogical trace
-  const handleSeedData = async () => {
-    if (!userProfile) return;
-    if (!confirm('영광종회의 1대~5대 모범 역사 가훈 및 13인 가로족보를 데이터베이스에 수록하시겠습니까?')) {
-      return;
-    }
-    setLoading(true);
-    try {
-      const result = await seedInitialClanData(userProfile.id);
-      setMembers(result.members);
-      setRelationships(result.relationships);
-    } catch (err) {
-      alert('기준 족보 세팅 중 기밀 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Profile Selection Jump triggered inside slide details
   const handleJumpToMember = useCallback((target: FamilyMember) => {
     setSelectedMember(target);
   }, []);
 
-  // Creation or Edition save trigger
+  const handleNextResult = useCallback(() => {
+    if (highlightedIds.length === 0) return;
+    setCurrentResultIndex(i => (i + 1) % highlightedIds.length);
+  }, [highlightedIds.length]);
+
+  const handlePrevResult = useCallback(() => {
+    if (highlightedIds.length === 0) return;
+    setCurrentResultIndex(i => (i - 1 + highlightedIds.length) % highlightedIds.length);
+  }, [highlightedIds.length]);
+
   const handleSaveMember = async (
     memberData: Omit<FamilyMember, 'id' | 'createdBy' | 'createdAt' | 'updatedAt'>,
-    relationData?: { targetId: string; type: any }
+    relationData?: { targetId: string; type: any; }
   ) => {
     if (!userProfile) return;
     setLoading(true);
     try {
       if (memberToEdit) {
-        // Edit Operation
         await updateFamilyMember(memberToEdit.id, memberData);
-        setMembers(prev =>
-          prev.map(m => (m.id === memberToEdit.id ? { ...m, ...memberData, updatedAt: new Date().toISOString() } : m))
-        );
-        // Sync open detail view
+        setMembers(prev => prev.map(m => m.id === memberToEdit.id ? { ...m, ...memberData, updatedAt: new Date().toISOString() } : m));
         setSelectedMember(prev => prev && prev.id === memberToEdit.id ? { ...prev, ...memberData } as FamilyMember : prev);
       } else {
-        // Creation Operation
         const newMember = await addFamilyMember(memberData, userProfile.id);
         setMembers(prev => [...prev, newMember]);
-
-        // Connect direct lineage immediately if defined
-        if (relationData && relationData.targetId) {
-          // If relationship is spouse/sibling, it's reciprocal or basic link
-          // If relationship is parent_child and target is specified as 'parent', then newly created is 'child'
-          const fromId = relationData.type === 'parent_child' ? relationData.targetId : newMember.id;
-          const toId = relationData.type === 'parent_child' ? newMember.id : relationData.targetId;
-
-          const newRel = await addRelationship(fromId, toId, relationData.type);
+        if (relationData?.targetId) {
+          let fromId: string;
+          let toId: string;
+          let relType: any;
+          if (relationData.type === 'parent_child') {
+            // target is parent, newMember is child
+            fromId = relationData.targetId;
+            toId = newMember.id;
+            relType = 'parent_child';
+          } else if (relationData.type === 'parent') {
+            // newMember is parent, target is child
+            fromId = newMember.id;
+            toId = relationData.targetId;
+            relType = 'parent_child';
+          } else {
+            fromId = newMember.id;
+            toId = relationData.targetId;
+            relType = relationData.type;
+          }
+          const newRel = await addRelationship(fromId, toId, relType);
           setRelationships(prev => [...prev, newRel]);
         }
       }
       setIsModalOpen(false);
       setMemberToEdit(null);
     } catch (e) {
-      alert('기록 수록 중 권한 성사에 오류가 생겼습니다: ' + String(e));
+      alert('저장 중 오류가 발생했습니다: ' + String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRelationship = async (relationshipId: string) => {
+    setLoading(true);
+    try {
+      await deleteRelationship(relationshipId);
+      setRelationships(prev => prev.filter(r => r.id !== relationshipId));
+    } catch (e) {
+      alert('관계 삭제 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteMember = async (memberId: string) => {
-    if (!confirm('해당 가인의 족보 기록 및 연계된 모든 부부/친자/형제 관계선이 모두 삭제됩니다. 계속하시겠습니까?')) {
-      return;
-    }
+    if (!confirm('이 가족 구성원과 관련된 모든 관계 정보가 삭제됩니다. 계속할까요?')) return;
     setLoading(true);
     try {
       await deleteFamilyMember(memberId);
@@ -193,170 +297,139 @@ export default function App() {
       setRelationships(prev => prev.filter(r => r.fromMemberId !== memberId && r.toMemberId !== memberId));
       setSelectedMember(null);
     } catch (e) {
-      alert('기록 공제 중 오류가 생겼습니다.');
+      alert('삭제 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Authorization toggle logic
-  const handleLogout = () => {
-    setUserProfile(null);
-    setView('tree');
+  const handleConnect = useCallback((connection: Connection) => {
+    if (userProfile?.role !== 'admin' || !connection.source || !connection.target) return;
+    setPendingConnection({ source: connection.source, target: connection.target });
+  }, [userProfile]);
+
+  const handleConfirmConnect = async (type: any, fromId: string, toId: string) => {
+    setLoading(true);
+    try {
+      const newRel = await addRelationship(fromId, toId, type);
+      setRelationships(prev => [...prev, newRel]);
+    } catch (e) {
+      alert('관계 연결 중 오류가 발생했습니다: ' + String(e));
+    } finally {
+      setLoading(false);
+      setPendingConnection(null);
+    }
   };
 
-  // If not logged-in, enforce compliance redirect view
-  if (!userProfile) {
-    return <LoginView onLoginSuccess={setUserProfile} />;
-  }
+  const handleLogout = () => setUserProfile(null);
+  const openAddModal = useCallback(() => { setMemberToEdit(null); setIsModalOpen(true); }, []);
+
+  if (!userProfile) return <LoginView onLoginSuccess={setUserProfile} />;
 
   const isAdmin = userProfile.role === 'admin';
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f8fafc]">
-      {/* Top Navigation */}
       <Header
-        currentView={currentView}
-        setView={setView}
         userProfile={userProfile}
         onLogout={handleLogout}
-        onSearch={setSearchQuery}
-        onSeedData={handleSeedData}
+        onSearch={(q) => { setSearchQuery(q); }}
+        onAddMember={openAddModal}
         hasMembers={members.length > 0}
+        memberCount={members.length}
+        searchResultCount={searchQuery.trim() ? highlightedIds.length : undefined}
+        currentResultIndex={searchQuery.trim() && highlightedIds.length > 0 ? currentResultIndex : undefined}
+        onNextResult={handleNextResult}
+        onPrevResult={handlePrevResult}
       />
 
-      {/* Main Screen Router */}
       <div className="flex-1 relative overflow-hidden flex">
-        {currentView === 'admin' ? (
-          <div className="flex-1 overflow-y-auto bg-white">
-            <AdminPanel onBack={() => setView('tree')} currentUserUid={userProfile.id} />
-          </div>
-        ) : (
-          /* Tree Visualization Area */
-          <div className="flex-1 relative flex flex-col md:flex-row h-full overflow-hidden">
-            
-            {/* Tree Map Stage */}
-            <div className="flex-1 h-full relative" id="react-flow-container">
-              {members.length === 0 ? (
-                /* No data empty state */
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-cultural-canvas bg-repeat">
-                  <div className="max-w-md bg-white p-8 rounded-2xl shadow-xl border-2 border-cultural-gold/25 flex flex-col items-center space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-cultural-gold/10 flex items-center justify-center border-2 border-cultural-gold/50">
-                      <BookOpen className="text-cultural-gold w-8 h-8" />
-                    </div>
-                    <h3 className="text-lg font-bold font-serif text-cultural-navy">
-                      영광종회 가계도 장부가 비어있습니다.
-                    </h3>
-                    <p className="text-xs text-slate-600 leading-relaxed font-serif">
-                      오른쪽 상단의 <b className="text-cultural-gold">기초 가록(족보) 심기</b> 버튼을 클릭하여 5대 가업 계보를 즉각 생성하거나, 아래 버튼으로 신규 선조를 한명씩 수록해 보십시오.
+        <div className="flex-1 relative flex flex-col md:flex-row h-full overflow-hidden">
+          <div className="flex-1 h-full relative">
+            {members.length === 0 ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-cultural-canvas">
+                <div className="max-w-sm bg-white p-8 rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}>
+                    <BookOpen className="text-white w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">아직 등록된 가족이 없어요</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed mt-1.5">
+                      {isAdmin ? '아래 버튼을 눌러 첫 번째 가족 구성원을 등록해보세요.' : '관리자가 가족을 등록하면 이곳에 가계도가 나타납니다.'}
                     </p>
-                    {isAdmin && (
-                      <button
-                        onClick={() => {
-                          setMemberToEdit(null);
-                          setIsModalOpen(true);
-                        }}
-                        className="flex items-center space-x-1.5 px-5 py-2.5 bg-cultural-navy hover:bg-[#1f3d64] border border-cultural-gold text-white text-xs font-semibold rounded-xl shadow-md transition cursor-pointer"
-                      >
-                        <Plus size={14} />
-                        <span>신규 시조 등록하기</span>
-                      </button>
-                    )}
                   </div>
+                  {isAdmin && (
+                    <button
+                      onClick={openAddModal}
+                      className="flex items-center gap-1.5 px-5 py-2.5 text-white text-xs font-semibold rounded-xl shadow-md transition cursor-pointer"
+                      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
+                    >
+                      <Plus size={14} />
+                      <span>새 가족 등록</span>
+                    </button>
+                  )}
                 </div>
-              ) : (
-                /* React Flow Render block */
-                <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  nodeTypes={nodeTypes}
-                  fitView
-                  fitViewOptions={{ padding: 0.15 }}
-                  className="bg-cultural-canvas bg-repeat"
-                >
-                  <Background color="#cbd5e1" gap={20} size={1} />
-                  <Controls className="!bg-[#fdfdfb] !shadow-lg !rounded-xl !border-2 !border-cultural-gold/25 !text-cultural-navy" />
-                  <MiniMap
-                    nodeColor={(n: any) => {
-                      if (n.data?.member?.isDeceased) return '#94a3b8';
-                      return n.data?.member?.gender === 'male' ? '#3b82f6' : '#ec4899';
-                    }}
-                    nodeStrokeWidth={3}
-                    maskColor="rgba(245, 245, 240, 0.45)"
-                    className="!bg-[#fdfdfb] !rounded-xl !border-2 !border-cultural-gold/25 !shadow-lg hidden sm:block"
-                  />
-                </ReactFlow>
-              )}
-
-              {/* Float helper description block */}
-              {members.length > 0 && (
-                <div className="absolute bottom-5 left-5 bg-[#fdfdfb]/95 backdrop-blur-xs p-4 rounded-xl border-2 border-cultural-gold/25 shadow-xl text-[10px] space-y-2.5 z-10 max-w-xs leading-relaxed pointer-events-none select-none">
-                  <p className="font-bold text-cultural-navy font-serif text-xs border-b border-cultural-gold/20 pb-1.5">문중 가계도 례식 (범례)</p>
-                  <div className="flex items-center space-x-4">
-                    <span className="flex items-center space-x-1">
-                      <span className="w-2.5 h-2.5 bg-blue-500 rounded-full inline-block shadow-inner" />
-                      <span className="font-serif">남성 (男)</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <span className="w-2.5 h-2.5 bg-rose-500 rounded-full inline-block shadow-inner" />
-                      <span className="font-serif">여성 (女)</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <span className="w-2.5 h-2.5 bg-slate-400 rounded-full inline-block shadow-inner" />
-                      <span className="font-serif">고인 (卒)</span>
-                    </span>
-                  </div>
-                  <p className="text-slate-500 font-serif leading-relaxed">
-                    * 인물을 클릭하면 생내 사적 및 자녀, 배우자의 상세 일람이 열립니다. 마우스 휠로 줌인/줌아웃, 드래그로 화면 이동이 가능합니다.
-                  </p>
-                </div>
-              )}
-
-              {/* Admin register floating trigger */}
-              {isAdmin && members.length > 0 && (
-                <button
-                  onClick={() => {
-                    setMemberToEdit(null);
-                    setIsModalOpen(true);
+              </div>
+            ) : (
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={handleConnect}
+                nodeTypes={nodeTypes}
+                nodesDraggable={false}
+                fitView
+                fitViewOptions={{ padding: 0.2 }}
+                className="bg-cultural-canvas"
+              >
+                <Background color="#e2e8f0" gap={28} size={1} />
+                <MiniMap
+                  position="top-right"
+                  nodeColor={(n: any) => {
+                    if (n.data?.member?.isDeceased) return '#94a3b8';
+                    return n.data?.member?.gender === 'male' ? '#3b82f6' : '#f43f5e';
                   }}
-                  title="신규 종원 추가"
-                  className="absolute bottom-5 right-5 w-12 h-12 bg-cultural-navy hover:bg-[#1a3354] text-white rounded-full shadow-2xl flex items-center justify-center border-2 border-cultural-gold transition-all duration-300 hover:rotate-90 z-20 cursor-pointer"
-                >
-                  <Plus size={24} strokeWidth={2.5} className="text-cultural-gold" />
-                </button>
-              )}
-            </div>
-
-            {/* Sidebar detail drawer slide-out panel */}
-            <DetailPanel
-              member={selectedMember}
-              onClose={() => setSelectedMember(null)}
-              relationships={relationships}
-              allMembers={members}
-              isAdmin={isAdmin}
-              onEdit={m => {
-                setMemberToEdit(m);
-                setIsModalOpen(true);
-              }}
-              onDelete={handleDeleteMember}
-              onSelectMember={handleJumpToMember}
-            />
+                  nodeStrokeWidth={2}
+                  maskColor="rgba(248,250,252,0.6)"
+                  className="!bg-white !rounded-xl !border !border-slate-200 !shadow-md hidden sm:block"
+                />
+                <FlowControls isAdmin={isAdmin} onAddMember={openAddModal} />
+                <SearchFitter targetId={highlightedIds[currentResultIndex] ?? null} />
+              </ReactFlow>
+            )}
           </div>
-        )}
+
+          <DetailPanel
+            member={selectedMember}
+            onClose={() => setSelectedMember(null)}
+            relationships={relationships}
+            allMembers={members}
+            isAdmin={isAdmin}
+            onEdit={m => { setMemberToEdit(m); setIsModalOpen(true); }}
+            onDelete={handleDeleteMember}
+            onDeleteRelationship={handleDeleteRelationship}
+            onSelectMember={handleJumpToMember}
+          />
+        </div>
       </div>
 
-      {/* Editor Modal Overlay for Creation & Mode updates */}
       {isModalOpen && (
         <MemberModal
           member={memberToEdit}
-          onClose={() => {
-            setIsModalOpen(false);
-            setMemberToEdit(null);
-          }}
+          onClose={() => { setIsModalOpen(false); setMemberToEdit(null); }}
           onSave={handleSaveMember}
           allMembers={members}
+        />
+      )}
+
+      {pendingConnection && (
+        <ConnectModal
+          sourceId={pendingConnection.source}
+          targetId={pendingConnection.target}
+          allMembers={members}
+          onConfirm={handleConfirmConnect}
+          onCancel={() => setPendingConnection(null)}
         />
       )}
     </div>

@@ -86,6 +86,12 @@ function setLocalRelations(relations: Relationship[]) {
   }
 }
 
+function stripUndefined<T extends object>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as T;
+}
+
 /**
  * Helper to race a promise against a timeout, avoiding long hangs on slow or offline Firestore
  */
@@ -242,7 +248,7 @@ export async function addFamilyMember(
   setLocalMembers([...currentLocal, newMember]);
 
   // Non-blocking background call to write to Firestore
-  setDoc(doc(db, MEMBERS_COLL, memberId), newMember).catch((error) => {
+  setDoc(doc(db, MEMBERS_COLL, memberId), stripUndefined(newMember)).catch((error) => {
     console.warn('Background Firestore addFamilyMember failed:', error);
   });
   
@@ -263,10 +269,10 @@ export async function updateFamilyMember(
   setLocalMembers(localMembers.map(m => m.id === id ? { ...m, ...memberData, updatedAt: updatedAtStr } : m));
 
   const memberRef = doc(db, MEMBERS_COLL, id);
-  updateDoc(memberRef, {
+  updateDoc(memberRef, stripUndefined({
     ...memberData,
     updatedAt: updatedAtStr
-  }).catch((error) => {
+  })).catch((error) => {
     console.warn('Background Firestore updateFamilyMember failed:', error);
   });
 }
