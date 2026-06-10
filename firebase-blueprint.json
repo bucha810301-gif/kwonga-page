@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "User profile with role details",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "member"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "role", "createdAt"]
+    },
+    "FamilyMember": {
+      "title": "FamilyMember",
+      "description": "Information about a family member",
+      "type": "object",
+      "properties": {
+        "generation": { "type": "integer" },
+        "name": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female", "unknown"] },
+        "birthDate": { "type": "string" },
+        "deathDate": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "memo": { "type": "string" },
+        "isDeceased": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["generation", "name", "gender", "isDeceased", "createdBy", "createdAt", "updatedAt"]
+    },
+    "Relationship": {
+      "title": "Relationship",
+      "description": "Relationship between two family members",
+      "type": "object",
+      "properties": {
+        "fromMemberId": { "type": "string" },
+        "toMemberId": { "type": "string" },
+        "type": { "type": "string", "enum": ["parent_child", "spouse", "sibling"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromMemberId", "toMemberId", "type", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "Profile",
+      "description": "Profiles of the authenticated users"
+    },
+    "/family_members/{memberId}": {
+      "schema": "FamilyMember",
+      "description": "The list of clan family members"
+    },
+    "/relationships/{relationshipId}": {
+      "schema": "Relationship",
+      "description": "Relationships among clan family members"
+    }
+  }
+}

@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@405;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans KR", sans-serif;
+  --font-serif: "Noto Serif KR", serif;
+  --color-cultural-navy: #1e3a5f;
+  --color-cultural-gold: #c5a059;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #fdfdfb;
+  color: #1e293b;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Premium Korean readability styling */
+* {
+  letter-spacing: -0.015em;
+}
+
+/* Globally scale up all text classes by around 15% to 20% to satisfy "전체적으로 텍스트를 키워주고 가독성 좋은 폰트" constraint */
+.text-xs {
+  font-size: 0.825rem !important; /* from 12px to ~13.2px */
+}
+.text-[10px], .text-[9px] {
+  font-size: 0.775rem !important; /* from 9/10px to ~12.4px */
+}
+.text-[11px] {
+  font-size: 0.8rem !important; /* from 11px to ~12.8px */
+}
+.text-sm {
+  font-size: 0.925rem !important; /* from 14px to ~15px */
+}
+.text-base {
+  font-size: 1.075rem !important; /* from 16px to ~17.2px */
+}
+.text-lg {
+  font-size: 1.2rem !important; /* from 18px to ~19.2px */
+}
+.text-xl {
+  font-size: 1.35rem !important; /* from 20px to ~21.6px */
+}
+
+/* Elegant Rice Paper Cultural Texture */
+.bg-cultural-canvas {
+  background-color: #fdfdfb;
+  background-image: url('https://www.transparenttextures.com/patterns/rice-paper-2.png');
+}
+
+/* React Flow Customize and elegant grid */
+.react-flow__node {
+  border-radius: 12px;
+}
+
+.react-flow__handle {
+  width: 8px !important;
+  height: 8px !important;
+  border: 1px solid #ffffff !important;
+}
+
+.react-flow__controls-button {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #fdfdfb !important;
+}
+

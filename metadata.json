@@ -1,0 +1,6 @@
+{
+  "name": "영광종회 가계도",
+  "description": "가문 구성원들이 온라인에서 가계도를 관리하고 열람할 수 있는 가계도 웹 애플리케이션",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

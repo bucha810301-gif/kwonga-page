@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Permissive Rules for Development and Sandbox Demo bypass logins
+    match /profiles/{userId} {
+      allow read, write: if true;
+    }
+
+    match /family_members/{memberId} {
+      allow read, write: if true;
+    }
+
+    match /relationships/{relationshipId} {
+      allow read, write: if true;
+    }
+  }
+}
