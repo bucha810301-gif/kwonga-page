@@ -22,7 +22,7 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
   // Invisible large handles for incoming connections (target)
   const hiddenHandleStyle: React.CSSProperties = {
     width: 20, height: 20, opacity: 0, border: 'none', background: 'transparent',
-    pointerEvents: isAdmin ? 'all' : 'none',
+    pointerEvents: 'all',
   };
 
   return (
@@ -63,12 +63,12 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
           left: '50%',
           transform: 'translateX(-50%)',
           border: 'none',
-          background: hovered && isAdmin
+          background: hovered
             ? 'linear-gradient(135deg, #1e3a5f, #2d5a9e)'
             : 'transparent',
-          cursor: isAdmin ? 'crosshair' : 'default',
-          opacity: isAdmin ? 1 : 0,
-          pointerEvents: isAdmin ? 'all' : 'none',
+          cursor: 'crosshair',
+          opacity: 1,
+          pointerEvents: 'all',
           transition: 'background 0.15s',
           display: 'flex',
           alignItems: 'center',
@@ -78,7 +78,7 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
       />
 
       {/* "관계 연결" label overlay (visual only, not interactive) */}
-      {isAdmin && hovered && (
+      {hovered && (
         <div
           className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 pointer-events-none select-none"
           style={{ height: 30, borderRadius: '0 0 14px 14px', zIndex: 11 }}
@@ -105,7 +105,7 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
       />
 
       {/* Card body */}
-      <div className="pl-4 pr-3 pt-3 flex gap-3 items-start" style={{ paddingBottom: isAdmin ? 38 : 12 }}>
+      <div className="pl-4 pr-3 py-3 flex gap-3 items-center" style={{ paddingBottom: 38 }}>
 
         {/* Photo */}
         <div className="shrink-0 relative">
@@ -115,18 +115,18 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
               alt={member.name}
               referrerPolicy="no-referrer"
               onClick={e => { e.stopPropagation(); setLightbox(true); }}
-              className={`w-14 h-14 rounded-xl object-cover cursor-zoom-in hover:opacity-90 transition-opacity ${isDeceased ? 'grayscale' : ''}`}
+              className={`w-[68px] h-[68px] rounded-xl object-cover cursor-zoom-in hover:opacity-90 transition-opacity ${isDeceased ? 'grayscale' : ''}`}
               style={{ border: `2px solid ${accentColor}22` }}
             />
           ) : (
             <div
-              className="w-14 h-14 rounded-xl flex items-center justify-center"
+              className="w-[68px] h-[68px] rounded-xl flex items-center justify-center"
               style={{
                 background: `linear-gradient(135deg, ${genderColor.bg}, white)`,
                 border: `2px solid ${accentColor}22`,
               }}
             >
-              <User size={22} style={{ color: genderColor.text, opacity: 0.7 }} />
+              <User size={28} style={{ color: genderColor.text, opacity: 0.7 }} />
             </div>
           )}
           {isDeceased && (

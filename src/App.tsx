@@ -33,6 +33,7 @@ import { FamilyNode } from './components/FamilyNode';
 import { DetailPanel } from './components/DetailPanel';
 import { MemberModal } from './components/MemberModal';
 import { ConnectModal } from './components/ConnectModal';
+import { AdminView } from './components/AdminView';
 
 import { Plus, Minus, Maximize2, BookOpen } from 'lucide-react';
 
@@ -66,9 +67,7 @@ function FlowControls({ isAdmin, onAddMember }: { isAdmin: boolean; onAddMember:
               <p>• 카드 클릭 → 상세 정보</p>
               <p>• 스크롤 → 줌인 / 줌아웃</p>
               <p>• 드래그 → 화면 이동</p>
-              {isAdmin && (
-                <p>• 핸들 드래그 → 관계 연결</p>
-              )}
+              <p>• 핸들 드래그 → 관계 연결</p>
             </div>
           </div>
 
@@ -95,16 +94,14 @@ function FlowControls({ isAdmin, onAddMember }: { isAdmin: boolean; onAddMember:
       {/* Bottom-right: fit view + add member, stacked vertically */}
       <Panel position="bottom-right">
         <div className="flex flex-col gap-2 items-end m-3 pointer-events-auto">
-          {isAdmin && (
-            <button
-              onClick={onAddMember}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-white rounded-xl shadow-lg text-xs font-semibold transition hover:opacity-90 cursor-pointer"
-              style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
-            >
-              <Plus size={14} />
-              <span>새 가족 등록</span>
-            </button>
-          )}
+          <button
+            onClick={onAddMember}
+            className="flex items-center gap-1.5 px-4 py-2.5 text-white rounded-xl shadow-lg text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
+          >
+            <Plus size={14} />
+            <span>새 가족 등록</span>
+          </button>
           <button
             onClick={() => fitView({ padding: 0.15, duration: 400 })}
             className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm text-xs font-medium text-slate-600 hover:bg-slate-50 hover:shadow-md transition cursor-pointer"
@@ -153,6 +150,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingConnection, setPendingConnection] = useState<{ source: string; target: string } | null>(null);
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
+  const [view, setView] = useState<'tree' | 'admin'>('tree');
 
   const loadData = useCallback(async () => {
     if (!userProfile) return;
@@ -304,9 +302,9 @@ export default function App() {
   };
 
   const handleConnect = useCallback((connection: Connection) => {
-    if (userProfile?.role !== 'admin' || !connection.source || !connection.target) return;
+    if (!connection.source || !connection.target) return;
     setPendingConnection({ source: connection.source, target: connection.target });
-  }, [userProfile]);
+  }, []);
 
   const handleConfirmConnect = async (type: any, fromId: string, toId: string) => {
     setLoading(true);
@@ -341,10 +339,20 @@ export default function App() {
         currentResultIndex={searchQuery.trim() && highlightedIds.length > 0 ? currentResultIndex : undefined}
         onNextResult={handleNextResult}
         onPrevResult={handlePrevResult}
+        view={view}
+        onViewChange={setView}
       />
 
       <div className="flex-1 relative overflow-hidden flex">
-        <div className="flex-1 relative flex flex-col md:flex-row h-full overflow-hidden">
+        {view === 'admin' ? (
+          <AdminView
+            members={members}
+            relationships={relationships}
+            onEdit={m => { setMemberToEdit(m); setIsModalOpen(true); }}
+            onDelete={handleDeleteMember}
+          />
+        ) : null}
+        <div className={`flex-1 relative flex flex-col md:flex-row h-full overflow-hidden ${view === 'admin' ? 'hidden' : ''}`}>
           <div className="flex-1 h-full relative">
             {members.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-cultural-canvas">
@@ -405,7 +413,6 @@ export default function App() {
             onClose={() => setSelectedMember(null)}
             relationships={relationships}
             allMembers={members}
-            isAdmin={isAdmin}
             onEdit={m => { setMemberToEdit(m); setIsModalOpen(true); }}
             onDelete={handleDeleteMember}
             onDeleteRelationship={handleDeleteRelationship}

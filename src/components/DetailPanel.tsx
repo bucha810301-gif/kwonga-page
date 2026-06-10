@@ -7,7 +7,6 @@ interface DetailPanelProps {
   onClose: () => void;
   relationships: Relationship[];
   allMembers: FamilyMember[];
-  isAdmin: boolean;
   onEdit: (member: FamilyMember) => void;
   onDelete: (memberId: string) => void;
   onDeleteRelationship: (relationshipId: string) => void;
@@ -18,13 +17,11 @@ function RelativeRow({
   member,
   onClick,
   icon,
-  isAdmin,
   onDeleteRel,
 }: {
   member: FamilyMember;
   onClick: () => void;
   icon?: React.ReactNode;
-  isAdmin: boolean;
   onDeleteRel: () => void;
   [key: string]: any;
 }) {
@@ -46,20 +43,18 @@ function RelativeRow({
         </div>
         <ChevronRight size={13} className="text-slate-300" />
       </button>
-      {isAdmin && (
-        <button
-          onClick={onDeleteRel}
-          title="관계 삭제"
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer shrink-0"
-        >
-          <Link2Off size={13} />
-        </button>
-      )}
+      <button
+        onClick={onDeleteRel}
+        title="관계 삭제"
+        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer shrink-0"
+      >
+        <Link2Off size={13} />
+      </button>
     </div>
   );
 }
 
-export function DetailPanel({ member, onClose, relationships, allMembers, isAdmin, onEdit, onDelete, onDeleteRelationship, onSelectMember }: DetailPanelProps) {
+export function DetailPanel({ member, onClose, relationships, allMembers, onEdit, onDelete, onDeleteRelationship, onSelectMember }: DetailPanelProps) {
   if (!member) return null;
 
   const parentRels = relationships.filter(r => r.type === 'parent_child' && r.toMemberId === member.id);
@@ -183,11 +178,9 @@ export function DetailPanel({ member, onClose, relationships, allMembers, isAdmi
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">가족 관계</p>
-            {isAdmin && (
-              <span className="text-[9px] text-slate-400 flex items-center gap-1">
-                <Link2Off size={10} /> 아이콘으로 관계 삭제
-              </span>
-            )}
+            <span className="text-[9px] text-slate-400 flex items-center gap-1">
+              <Link2Off size={10} /> 아이콘으로 관계 삭제
+            </span>
           </div>
 
           {spouses.length > 0 && (
@@ -196,7 +189,7 @@ export function DetailPanel({ member, onClose, relationships, allMembers, isAdmi
               {spouses.map(({ rel, m }) => (
                 <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
                   icon={<Heart size={11} className="text-rose-400" fill="currentColor" />}
-                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                  onDeleteRel={() => handleDeleteRel(rel)}
                 />
               ))}
             </div>
@@ -207,7 +200,7 @@ export function DetailPanel({ member, onClose, relationships, allMembers, isAdmi
               <p className="text-[10px] font-semibold text-slate-500">부모</p>
               {parents.map(({ rel, m }) => (
                 <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
-                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                  onDeleteRel={() => handleDeleteRel(rel)}
                 />
               ))}
             </div>
@@ -218,7 +211,7 @@ export function DetailPanel({ member, onClose, relationships, allMembers, isAdmi
               <p className="text-[10px] font-semibold text-slate-500">자녀 ({children.length}명)</p>
               {children.map(({ rel, m }) => (
                 <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
-                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                  onDeleteRel={() => handleDeleteRel(rel)}
                 />
               ))}
             </div>
@@ -229,7 +222,7 @@ export function DetailPanel({ member, onClose, relationships, allMembers, isAdmi
               <p className="text-[10px] font-semibold text-slate-500">형제자매</p>
               {siblings.map(({ rel, m }) => (
                 <RelativeRow key={rel.id} member={m} onClick={() => onSelectMember(m)}
-                  isAdmin={isAdmin} onDeleteRel={() => handleDeleteRel(rel)}
+                  onDeleteRel={() => handleDeleteRel(rel)}
                 />
               ))}
             </div>
@@ -241,25 +234,23 @@ export function DetailPanel({ member, onClose, relationships, allMembers, isAdmi
         </div>
       </div>
 
-      {/* Admin actions */}
-      {isAdmin && (
-        <div className="p-4 border-t border-slate-100 flex gap-2 shrink-0 bg-slate-50/50">
-          <button
-            onClick={() => onEdit(member)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
-          >
-            <Edit3 size={13} />
-            <span>정보 수정</span>
-          </button>
-          <button
-            onClick={() => onDelete(member.id)}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-500 border border-slate-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer"
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
-      )}
+      {/* Actions */}
+      <div className="p-4 border-t border-slate-100 flex gap-2 shrink-0 bg-slate-50/50">
+        <button
+          onClick={() => onEdit(member)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-white transition-all cursor-pointer"
+          style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
+        >
+          <Edit3 size={13} />
+          <span>정보 수정</span>
+        </button>
+        <button
+          onClick={() => onDelete(member.id)}
+          className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-500 border border-slate-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
     </div>
   );
 }

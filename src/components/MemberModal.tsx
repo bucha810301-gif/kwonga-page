@@ -27,6 +27,14 @@ export function MemberModal({ member, onClose, onSave, allMembers }: MemberModal
   const [relTargetId, setRelTargetId] = useState('');
   const [relType, setRelType] = useState<RelationshipType | 'parent'>('spouse');
 
+  // 외성 배우자 등록 시 배우자 세대에 자동 맞춤
+  useEffect(() => {
+    if (isExternalSpouse && relTargetId) {
+      const target = allMembers.find(m => m.id === relTargetId);
+      if (target) setGeneration(target.generation);
+    }
+  }, [isExternalSpouse, relTargetId, allMembers]);
+
   useEffect(() => {
     if (member) {
       setGeneration(member.generation);
