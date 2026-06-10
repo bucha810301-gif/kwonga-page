@@ -35,12 +35,17 @@ import { MemberModal } from './components/MemberModal';
 import { ConnectModal } from './components/ConnectModal';
 import { AdminView } from './components/AdminView';
 
-import { Plus, Minus, Maximize2, BookOpen } from 'lucide-react';
+import { Plus, Minus, Maximize2, BookOpen, Heart, HeartOff } from 'lucide-react';
 
 const nodeTypes = { familyNode: FamilyNode };
 
 // Inner component that can use useReactFlow hook (must be inside ReactFlow context)
-function FlowControls({ isAdmin, onAddMember }: { isAdmin: boolean; onAddMember: () => void }) {
+function FlowControls({ isAdmin, onAddMember, hideSpouses, onToggleSpouses }: {
+  isAdmin: boolean;
+  onAddMember: () => void;
+  hideSpouses: boolean;
+  onToggleSpouses: () => void;
+}) {
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   return (
@@ -94,13 +99,26 @@ function FlowControls({ isAdmin, onAddMember }: { isAdmin: boolean; onAddMember:
       {/* Bottom-right: fit view + add member, stacked vertically */}
       <Panel position="bottom-right">
         <div className="flex flex-col gap-2 items-end m-3 pointer-events-auto">
+          {isAdmin && (
+            <button
+              onClick={onAddMember}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-white rounded-xl shadow-lg text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+              style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
+            >
+              <Plus size={14} />
+              <span>새 가족 등록</span>
+            </button>
+          )}
           <button
-            onClick={onAddMember}
-            className="flex items-center gap-1.5 px-4 py-2.5 text-white rounded-xl shadow-lg text-xs font-semibold transition hover:opacity-90 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}
+            onClick={onToggleSpouses}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border shadow-sm text-xs font-medium transition cursor-pointer ${
+              hideSpouses
+                ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:shadow-md'
+            }`}
           >
-            <Plus size={14} />
-            <span>새 가족 등록</span>
+            {hideSpouses ? <HeartOff size={13} /> : <Heart size={13} />}
+            <span>{hideSpouses ? '배우자 표시' : '배우자 숨김'}</span>
           </button>
           <button
             onClick={() => fitView({ padding: 0.15, duration: 400 })}
@@ -151,6 +169,7 @@ export default function App() {
   const [pendingConnection, setPendingConnection] = useState<{ source: string; target: string } | null>(null);
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [view, setView] = useState<'tree' | 'admin'>('tree');
+  const [hideSpouses, setHideSpouses] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!userProfile) return;
@@ -204,15 +223,22 @@ export default function App() {
       return genB - genA;
     });
 
-    setNodes(finalNodes);
-    setEdges(rawEdges);
+    const visibleNodes = hideSpouses
+      ? finalNodes.filter((n: any) => !n.data.member.isExternalSpouse)
+      : finalNodes;
+    const visibleEdges = hideSpouses
+      ? rawEdges.filter((e: any) => !e.id.startsWith('edge-spouse-'))
+      : rawEdges;
+
+    setNodes(visibleNodes);
+    setEdges(visibleEdges);
     setHighlightedIds(prev => {
       const prevKey = prev.join(',');
       const nextKey = sortedIds.join(',');
       if (prevKey !== nextKey) setCurrentResultIndex(0);
       return sortedIds;
     });
-  }, [members, relationships, searchQuery, setNodes, setEdges]);
+  }, [members, relationships, searchQuery, hideSpouses, setNodes, setEdges]);
 
   const handleJumpToMember = useCallback((target: FamilyMember) => {
     setSelectedMember(target);
@@ -348,13 +374,21 @@ export default function App() {
           <AdminView
             members={members}
             relationships={relationships}
+            isAdmin={isAdmin}
             onEdit={m => { setMemberToEdit(m); setIsModalOpen(true); }}
             onDelete={handleDeleteMember}
           />
         ) : null}
         <div className={`flex-1 relative flex flex-col md:flex-row h-full overflow-hidden ${view === 'admin' ? 'hidden' : ''}`}>
           <div className="flex-1 h-full relative">
-            {members.length === 0 ? (
+            {loading && members.length === 0 ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-cultural-canvas">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-10 h-10 rounded-full border-[3px] border-[#c5a059] border-t-transparent animate-spin" />
+                  <p className="text-sm text-slate-500 font-medium">가계도 불러오는 중...</p>
+                </div>
+              </div>
+            ) : members.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-cultural-canvas">
                 <div className="max-w-sm bg-white p-8 rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5a9e)' }}>
@@ -402,7 +436,7 @@ export default function App() {
                   maskColor="rgba(248,250,252,0.6)"
                   className="!bg-white !rounded-xl !border !border-slate-200 !shadow-md hidden sm:block"
                 />
-                <FlowControls isAdmin={isAdmin} onAddMember={openAddModal} />
+                <FlowControls isAdmin={isAdmin} onAddMember={openAddModal} hideSpouses={hideSpouses} onToggleSpouses={() => setHideSpouses(v => !v)} />
                 <SearchFitter targetId={highlightedIds[currentResultIndex] ?? null} />
               </ReactFlow>
             )}
@@ -413,6 +447,7 @@ export default function App() {
             onClose={() => setSelectedMember(null)}
             relationships={relationships}
             allMembers={members}
+            isAdmin={isAdmin}
             onEdit={m => { setMemberToEdit(m); setIsModalOpen(true); }}
             onDelete={handleDeleteMember}
             onDeleteRelationship={handleDeleteRelationship}

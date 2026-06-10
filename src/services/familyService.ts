@@ -220,7 +220,7 @@ export async function fetchFamilyMembers(): Promise<FamilyMember[]> {
   };
 
   try {
-    return await withTimeout(firestoreFetch(), 1000, local);
+    return await withTimeout(firestoreFetch(), 10000, local);
   } catch (error) {
     console.warn('Firestore fetchFamilyMembers timed out or failed, returned local state:', error);
     return local;
@@ -243,15 +243,13 @@ export async function addFamilyMember(
     updatedAt: new Date().toISOString()
   };
   
-  // High Availability: Save to local storage first (instant response)
+  // Save to local storage for instant UI response
   const currentLocal = getLocalMembers();
   setLocalMembers([...currentLocal, newMember]);
 
-  // Non-blocking background call to write to Firestore
-  setDoc(doc(db, MEMBERS_COLL, memberId), stripUndefined(newMember)).catch((error) => {
-    console.warn('Background Firestore addFamilyMember failed:', error);
-  });
-  
+  // Await Firestore write to ensure data persists across devices
+  await setDoc(doc(db, MEMBERS_COLL, memberId), stripUndefined(newMember));
+
   return newMember;
 }
 
@@ -269,12 +267,10 @@ export async function updateFamilyMember(
   setLocalMembers(localMembers.map(m => m.id === id ? { ...m, ...memberData, updatedAt: updatedAtStr } : m));
 
   const memberRef = doc(db, MEMBERS_COLL, id);
-  updateDoc(memberRef, stripUndefined({
+  await updateDoc(memberRef, stripUndefined({
     ...memberData,
     updatedAt: updatedAtStr
-  })).catch((error) => {
-    console.warn('Background Firestore updateFamilyMember failed:', error);
-  });
+  }));
 }
 
 /**
@@ -288,21 +284,16 @@ export async function deleteFamilyMember(id: string): Promise<void> {
   const localRelations = getLocalRelations();
   setLocalRelations(localRelations.filter(r => r.fromMemberId !== id && r.toMemberId !== id));
 
-  // Non-blocking background job to clean up the DB
-  (async () => {
-    await deleteDoc(doc(db, MEMBERS_COLL, id));
-    
-    const relationsRef = collection(db, RELATIONS_COLL);
-    const snapFrom = await getDocs(query(relationsRef, where('fromMemberId', '==', id)));
-    const snapTo = await getDocs(query(relationsRef, where('toMemberId', '==', id)));
-    
-    const batch = writeBatch(db);
-    snapFrom.forEach(d => batch.delete(d.ref));
-    snapTo.forEach(d => batch.delete(d.ref));
-    await batch.commit();
-  })().catch((error) => {
-    console.warn('Background Firestore deleteFamilyMember database cleanup failed:', error);
-  });
+  await deleteDoc(doc(db, MEMBERS_COLL, id));
+
+  const relationsRef = collection(db, RELATIONS_COLL);
+  const snapFrom = await getDocs(query(relationsRef, where('fromMemberId', '==', id)));
+  const snapTo = await getDocs(query(relationsRef, where('toMemberId', '==', id)));
+
+  const batch = writeBatch(db);
+  snapFrom.forEach(d => batch.delete(d.ref));
+  snapTo.forEach(d => batch.delete(d.ref));
+  await batch.commit();
 }
 
 /**
@@ -320,7 +311,7 @@ export async function fetchRelationships(): Promise<Relationship[]> {
   };
 
   try {
-    return await withTimeout(firestoreFetch(), 1000, local);
+    return await withTimeout(firestoreFetch(), 10000, local);
   } catch (error) {
     console.warn('Firestore fetchRelationships timed out or failed, returned local state:', error);
     return local;
@@ -344,14 +335,11 @@ export async function addRelationship(
     createdAt: new Date().toISOString()
   };
   
-  // Local storage save first
   const currentLocal = getLocalRelations();
   setLocalRelations([...currentLocal, newRelation]);
 
-  setDoc(doc(db, RELATIONS_COLL, relationId), newRelation).catch((error) => {
-    console.warn('Background Firestore addRelationship failed:', error);
-  });
-  
+  await setDoc(doc(db, RELATIONS_COLL, relationId), newRelation);
+
   return newRelation;
 }
 
@@ -362,9 +350,7 @@ export async function deleteRelationship(id: string): Promise<void> {
   const currentLocal = getLocalRelations();
   setLocalRelations(currentLocal.filter(r => r.id !== id));
 
-  deleteDoc(doc(db, RELATIONS_COLL, id)).catch((error) => {
-    console.warn('Background Firestore deleteRelationship failed:', error);
-  });
+  await deleteDoc(doc(db, RELATIONS_COLL, id));
 }
 
 /**

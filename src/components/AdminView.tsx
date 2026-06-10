@@ -5,6 +5,7 @@ import { Search, Edit3, Trash2, Users, ChevronUp, ChevronDown } from 'lucide-rea
 interface AdminViewProps {
   members: FamilyMember[];
   relationships: Relationship[];
+  isAdmin?: boolean;
   onEdit: (member: FamilyMember) => void;
   onDelete: (memberId: string) => void;
 }
@@ -12,7 +13,7 @@ interface AdminViewProps {
 type SortKey = 'generation' | 'name' | 'birthDate';
 type SortDir = 'asc' | 'desc';
 
-export function AdminView({ members, relationships, onEdit, onDelete }: AdminViewProps) {
+export function AdminView({ members, relationships, isAdmin = false, onEdit, onDelete }: AdminViewProps) {
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('generation');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -75,10 +76,10 @@ export function AdminView({ members, relationships, onEdit, onDelete }: AdminVie
   };
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col bg-slate-50">
+    <div className="flex-1 overflow-hidden flex flex-col bg-slate-50 min-h-0">
 
       {/* Stats bar */}
-      <div className="px-6 py-4 bg-white border-b border-slate-100 flex gap-6 flex-wrap">
+      <div className="px-4 py-3 md:px-6 md:py-4 bg-white border-b border-slate-100 flex gap-4 md:gap-6 flex-wrap">
         <StatCard label="총 구성원" value={stats.total} unit="명" color="#1e3a5f" />
         <StatCard label="고인" value={stats.deceased} unit="명" color="#94a3b8" />
         <StatCard label="외성 배우자" value={stats.external} unit="명" color="#a07830" />
@@ -96,7 +97,7 @@ export function AdminView({ members, relationships, onEdit, onDelete }: AdminVie
       </div>
 
       {/* Search */}
-      <div className="px-6 py-3 bg-white border-b border-slate-100">
+      <div className="px-4 py-2.5 md:px-6 md:py-3 bg-white border-b border-slate-100">
         <div className="relative max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -109,9 +110,59 @@ export function AdminView({ members, relationships, onEdit, onDelete }: AdminVie
         </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto px-6 py-4">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Mobile card list */}
+      <div className="md:hidden overflow-auto px-3 py-3 space-y-2.5" style={{ flex: '1 1 0', minHeight: 0 }}>
+        {filtered.length === 0 ? (
+          <p className="text-center text-sm text-slate-400 py-10">검색 결과가 없습니다</p>
+        ) : filtered.map(m => (
+          <div key={m.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 flex items-center gap-3">
+            {m.photoUrl ? (
+              <img src={m.photoUrl} alt={m.name} className={`w-12 h-12 rounded-xl object-cover shrink-0 ${m.isDeceased ? 'grayscale' : ''}`} />
+            ) : (
+              <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center" style={{ background: '#f1f5f9' }}>
+                <span className="text-slate-400 text-xl">👤</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1 flex-wrap mb-0.5">
+                {m.isExternalSpouse ? (
+                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: '#a0783015', color: '#a07830' }}>{m.surname || '외성'}</span>
+                ) : (
+                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: '#1e3a5f12', color: '#1e3a5f' }}>{m.generation}대</span>
+                )}
+                <span className="text-[11px] px-1.5 py-0.5 rounded-md font-medium"
+                  style={{ background: m.gender === 'male' ? '#eff6ff' : m.gender === 'female' ? '#fff1f2' : '#f8fafc', color: m.gender === 'male' ? '#2563eb' : m.gender === 'female' ? '#e11d48' : '#64748b' }}>
+                  {m.gender === 'male' ? '남' : m.gender === 'female' ? '여' : '?'}
+                </span>
+                {m.isDeceased && <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500">고인</span>}
+              </div>
+              <p className="font-bold text-slate-800 text-sm truncate">
+                {m.name}
+                {spouseLabelMap[m.id] && <span className="text-[11px] text-slate-400 font-normal ml-1">{spouseLabelMap[m.id]}</span>}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">{m.birthDate || '생년 미상'}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => onEdit(m)} className="p-2 rounded-xl text-slate-400 hover:text-[#1e3a5f] hover:bg-slate-100 transition cursor-pointer">
+                <Edit3 size={15} />
+              </button>
+              {isAdmin && (
+                <button onClick={() => { if (confirm(`'${m.name}'을(를) 삭제할까요?`)) onDelete(m.id); }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer">
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {filtered.length > 0 && (
+          <p className="text-center text-[11px] text-slate-400 py-1">{filtered.length}명 표시 중 (전체 {members.length}명)</p>
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:flex flex-1 overflow-auto px-6 py-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
@@ -127,7 +178,7 @@ export function AdminView({ members, relationships, onEdit, onDelete }: AdminVie
                 </Th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">메모</th>
                 <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">상태</th>
-                <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">관리</th>
+                <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider">{isAdmin ? '관리' : '수정'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -212,13 +263,15 @@ export function AdminView({ members, relationships, onEdit, onDelete }: AdminVie
                         title="수정">
                         <Edit3 size={14} />
                       </button>
-                      <button onClick={() => {
-                        if (confirm(`'${m.name}'을(를) 삭제할까요?`)) onDelete(m.id);
-                      }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer"
-                        title="삭제">
-                        <Trash2 size={14} />
-                      </button>
+                      {isAdmin && (
+                        <button onClick={() => {
+                          if (confirm(`'${m.name}'을(를) 삭제할까요?`)) onDelete(m.id);
+                        }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer"
+                          title="삭제">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
