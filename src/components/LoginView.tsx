@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Profile } from '../types';
+import { supabase } from '../lib/supabase';
 import { Lock, User, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface LoginViewProps {
@@ -31,6 +32,14 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
       createdAt: new Date().toISOString(),
       ...account.profile,
     });
+  };
+
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) alert('로그인 오류: ' + error.message);
   };
 
   const handleSocialLogin = (role: 'admin' | 'member') => {
@@ -84,7 +93,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
           {/* Social login */}
           <div className="p-6 space-y-3">
             <button
-              onClick={() => handleSocialLogin('member')}
+              onClick={handleGoogleLogin}
               className="w-full flex items-center space-x-3 py-3 px-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-sm font-medium text-slate-700 cursor-pointer"
             >
               <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">

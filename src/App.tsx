@@ -14,6 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { Profile, FamilyMember, Relationship } from './types';
+import { supabase } from './lib/supabase';
 import {
   fetchFamilyMembers,
   fetchRelationships,
@@ -36,6 +37,18 @@ import { ConnectModal } from './components/ConnectModal';
 import { AdminView } from './components/AdminView';
 
 import { Plus, Minus, Maximize2, BookOpen, Heart, HeartOff } from 'lucide-react';
+
+const ADMIN_EMAIL = 'bucha810301@gmail.com';
+
+function buildProfile(user: { id: string; email?: string; created_at: string; user_metadata?: Record<string, string> }): Profile {
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? '사용자',
+    role: user.email === ADMIN_EMAIL ? 'admin' : 'member',
+    createdAt: user.created_at,
+  };
+}
 
 const nodeTypes = { familyNode: FamilyNode };
 
@@ -157,6 +170,7 @@ function SearchFitter({ targetId }: { targetId: string | null }) {
 
 export default function App() {
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [members, setMembers] = useState<FamilyMember[]>(() => getLocalMembers());
   const [relationships, setRelationships] = useState<Relationship[]>(() => getLocalRelations());
   const [loading, setLoading] = useState(false);
@@ -172,6 +186,23 @@ export default function App() {
   const [hideSpouses, setHideSpouses] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) setUserProfile(buildProfile(session.user));
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUserProfile(buildProfile(session.user));
+      } else if (event === 'SIGNED_OUT') {
+        setUserProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!userProfile) return;
@@ -376,8 +407,17 @@ export default function App() {
     }, 5000);
   }, []);
 
-  const handleLogout = () => setUserProfile(null);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUserProfile(null);
+  };
   const openAddModal = useCallback(() => { setMemberToEdit(null); setIsModalOpen(true); }, []);
+
+  if (authLoading) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f2744 100%)' }}>
+      <div className="w-10 h-10 rounded-full border-[3px] border-[#c5a059] border-t-transparent animate-spin" />
+    </div>
+  );
 
   if (!userProfile) return <LoginView onLoginSuccess={setUserProfile} />;
 
