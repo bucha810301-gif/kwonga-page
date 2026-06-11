@@ -1,6 +1,73 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Plus } from 'lucide-react';
+import { X, Upload } from 'lucide-react';
 import { FamilyMember, RelationshipType } from '../types';
+
+// 연도 직접 입력 + 월/일 드롭다운 날짜 컴포넌트
+function DateInput({ value, onChange, disabled }: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const parts = value ? value.split('-') : [];
+  const year = parts[0] || '';
+  const month = parts[1] || '';
+  const day = parts[2] || '';
+
+  const update = (y: string, m: string, d: string) => {
+    if (!y) { onChange(''); return; }
+    if (!m) { onChange(y); return; }
+    if (!d) { onChange(`${y}-${m}`); return; }
+    onChange(`${y}-${m}-${d}`);
+  };
+
+  const daysInMonth = (month && year)
+    ? new Date(parseInt(year), parseInt(month), 0).getDate()
+    : 31;
+
+  const base = "bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:bg-white transition";
+
+  return (
+    <div className={`flex gap-1.5 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
+      <input
+        type="text"
+        inputMode="numeric"
+        maxLength={4}
+        placeholder="연도"
+        value={year}
+        disabled={disabled}
+        onChange={e => {
+          const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+          update(val, month, day);
+        }}
+        className={`${base} w-[68px] text-center`}
+      />
+      <select
+        value={month}
+        disabled={disabled || year.length < 4}
+        onChange={e => update(year, e.target.value, e.target.value ? day : '')}
+        className={`${base} flex-1`}
+      >
+        <option value="">월</option>
+        {Array.from({ length: 12 }, (_, i) => {
+          const m = String(i + 1).padStart(2, '0');
+          return <option key={m} value={m}>{i + 1}월</option>;
+        })}
+      </select>
+      <select
+        value={day}
+        disabled={disabled || !month}
+        onChange={e => update(year, month, e.target.value)}
+        className={`${base} flex-1`}
+      >
+        <option value="">일</option>
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const d = String(i + 1).padStart(2, '0');
+          return <option key={d} value={d}>{i + 1}일</option>;
+        })}
+      </select>
+    </div>
+  );
+}
 
 interface MemberModalProps {
   member: FamilyMember | null;
@@ -218,17 +285,14 @@ export function MemberModal({ member, onClose, onSave, allMembers }: MemberModal
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
             <div>
               <label className={labelClass}>생년월일</label>
-              <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className={inputClass} />
+              <DateInput value={birthDate} onChange={setBirthDate} />
             </div>
             <div>
               <label className={`${labelClass} ${!isDeceased ? 'opacity-40' : ''}`}>사망일</label>
-              <input type="date" disabled={!isDeceased} value={deathDate}
-                onChange={e => setDeathDate(e.target.value)}
-                className={`${inputClass} ${!isDeceased ? 'opacity-40 cursor-not-allowed' : ''}`}
-              />
+              <DateInput value={deathDate} onChange={setDeathDate} disabled={!isDeceased} />
             </div>
           </div>
 
