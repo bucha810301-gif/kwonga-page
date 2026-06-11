@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -170,6 +170,8 @@ export default function App() {
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [view, setView] = useState<'tree' | 'admin'>('tree');
   const [hideSpouses, setHideSpouses] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const collapseTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const loadData = useCallback(async () => {
     if (!userProfile) return;
@@ -345,6 +347,35 @@ export default function App() {
     }
   };
 
+  // 모바일 헤더 자동 숨김: tree 뷰 진입 시 2.5초 후 접힘
+  useEffect(() => {
+    clearTimeout(collapseTimerRef.current);
+    if (view === 'tree') {
+      collapseTimerRef.current = setTimeout(() => {
+        if (window.innerWidth < 768) setHeaderCollapsed(true);
+      }, 2500);
+    } else {
+      setHeaderCollapsed(false);
+    }
+    return () => clearTimeout(collapseTimerRef.current);
+  }, [view]);
+
+  const handleFlowPointerDown = useCallback(() => {
+    if (window.innerWidth < 768) {
+      clearTimeout(collapseTimerRef.current);
+      setHeaderCollapsed(true);
+    }
+  }, []);
+
+  const handleExpandHeader = useCallback(() => {
+    setHeaderCollapsed(false);
+    clearTimeout(collapseTimerRef.current);
+    // 5초 후 다시 자동 접힘
+    collapseTimerRef.current = setTimeout(() => {
+      if (window.innerWidth < 768) setHeaderCollapsed(true);
+    }, 5000);
+  }, []);
+
   const handleLogout = () => setUserProfile(null);
   const openAddModal = useCallback(() => { setMemberToEdit(null); setIsModalOpen(true); }, []);
 
@@ -367,6 +398,8 @@ export default function App() {
         onPrevResult={handlePrevResult}
         view={view}
         onViewChange={setView}
+        isCollapsed={headerCollapsed && view === 'tree'}
+        onExpand={handleExpandHeader}
       />
 
       <div className="flex-1 relative overflow-hidden flex">
@@ -380,7 +413,7 @@ export default function App() {
           />
         ) : null}
         <div className={`flex-1 relative flex flex-col md:flex-row h-full overflow-hidden ${view === 'admin' ? 'hidden' : ''}`}>
-          <div className="flex-1 h-full relative">
+          <div className="flex-1 h-full relative" onPointerDown={handleFlowPointerDown}>
             {loading && members.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-cultural-canvas">
                 <div className="flex flex-col items-center gap-3">
