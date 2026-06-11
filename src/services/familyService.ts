@@ -215,8 +215,17 @@ export async function fetchFamilyMembers(): Promise<FamilyMember[]> {
     const members = snap.docs.map(d => d.data() as FamilyMember);
     if (members.length > 0) {
       setLocalMembers(members);
+      return members;
     }
-    return members.length > 0 ? members : local;
+    // Firestore is empty but local has data — push local to Firestore
+    if (local.length > 0) {
+      const batch = writeBatch(db);
+      for (const m of local) {
+        batch.set(doc(db, MEMBERS_COLL, m.id), stripUndefined(m));
+      }
+      await batch.commit();
+    }
+    return local;
   };
 
   try {
@@ -306,8 +315,17 @@ export async function fetchRelationships(): Promise<Relationship[]> {
     const relations = snap.docs.map(d => d.data() as Relationship);
     if (relations.length > 0) {
       setLocalRelations(relations);
+      return relations;
     }
-    return relations.length > 0 ? relations : local;
+    // Firestore is empty but local has data — push local to Firestore
+    if (local.length > 0) {
+      const batch = writeBatch(db);
+      for (const r of local) {
+        batch.set(doc(db, RELATIONS_COLL, r.id), r);
+      }
+      await batch.commit();
+    }
+    return local;
   };
 
   try {
