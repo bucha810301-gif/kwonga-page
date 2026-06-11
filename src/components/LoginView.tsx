@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Profile } from '../types';
 import { Lock, User, ChevronDown, ChevronUp } from 'lucide-react';
-import { auth } from '../firebase';
-import { signInAnonymously } from 'firebase/auth';
 
 interface LoginViewProps {
   onLoginSuccess: (profile: Profile) => void;
@@ -21,14 +19,13 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [inputPw, setInputPw] = useState('');
   const [error, setError] = useState('');
 
-  const handleIdLogin = async (e: React.FormEvent) => {
+  const handleIdLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const account = ACCOUNTS[inputId.trim()];
     if (!account || account.pw !== inputPw) {
       setError('아이디 또는 비밀번호가 올바르지 않습니다.');
       return;
     }
-    try { await signInAnonymously(auth); } catch (e) { console.warn('Anonymous auth failed:', e); }
     onLoginSuccess({
       id: 'master_' + Date.now(),
       createdAt: new Date().toISOString(),
@@ -36,8 +33,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     });
   };
 
-  const handleSocialLogin = async (role: 'admin' | 'member') => {
-    try { await signInAnonymously(auth); } catch (e) { console.warn('Anonymous auth failed:', e); }
+  const handleSocialLogin = (role: 'admin' | 'member') => {
     onLoginSuccess({
       id: 'guest_' + role + '_' + Math.random().toString(36).substring(2, 9),
       email: role === 'admin' ? 'bucha810301@gmail.com' : 'member@younggwang.org',
