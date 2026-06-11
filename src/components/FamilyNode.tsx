@@ -33,8 +33,8 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={`relative cursor-pointer select-none bg-white transition-all duration-200 ${
-        isDeceased ? 'opacity-65' : ''
-      } ${isHighlighted ? 'scale-[1.06]' : 'hover:-translate-y-0.5'}`}
+        isHighlighted ? 'scale-[1.06]' : 'hover:-translate-y-0.5'
+      }`}
       style={{
         width: '240px',
         borderRadius: '14px',
@@ -115,7 +115,7 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
               alt={member.name}
               referrerPolicy="no-referrer"
               onClick={e => { e.stopPropagation(); setLightbox(true); }}
-              className={`w-[68px] h-[68px] rounded-xl object-cover cursor-zoom-in hover:opacity-90 transition-opacity ${isDeceased ? 'grayscale' : ''}`}
+              className="w-[68px] h-[68px] rounded-xl object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
               style={{ border: `2px solid ${accentColor}22` }}
             />
           ) : (
@@ -127,11 +127,6 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
               }}
             >
               <User size={28} style={{ color: genderColor.text, opacity: 0.7 }} />
-            </div>
-          )}
-          {isDeceased && (
-            <div className="absolute -bottom-1 -right-1 bg-slate-500 text-white text-[8px] font-bold px-1 py-0.5 rounded-full leading-none">
-              고인
             </div>
           )}
         </div>
@@ -158,11 +153,13 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
 
           <h4 className="text-sm font-bold text-slate-800 truncate leading-tight">{member.name}</h4>
 
-          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-            {member.birthDate
-              ? (isDeceased ? `${member.birthDate} ~ ${member.deathDate || '미상'}` : member.birthDate)
-              : '생년 미상'}
-          </p>
+          {(member.birthDate || member.deathDate) && (
+            <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+              {member.birthDate}
+              {member.deathDate && ` ~ ${member.deathDate}`}
+              {isDeceased && !member.deathDate && member.birthDate && ' ~'}
+            </p>
+          )}
 
           {member.memo && (
             <p className="text-[10px] text-slate-400 mt-1 leading-relaxed"
@@ -190,7 +187,7 @@ export function FamilyNode({ data }: { data: FamilyNodeData }) {
               src={member.photoUrl}
               alt={member.name}
               referrerPolicy="no-referrer"
-              className={`rounded-2xl shadow-2xl ${isDeceased ? 'grayscale' : ''}`}
+              className="rounded-2xl shadow-2xl"
               style={{ maxWidth: 'min(80vw, 640px)', maxHeight: '75vh', width: 'auto', height: 'auto' }}
             />
             <p className="text-white font-semibold mt-3 text-sm">{member.name}</p>
