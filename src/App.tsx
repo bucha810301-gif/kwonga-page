@@ -24,7 +24,8 @@ import {
   addRelationship,
   deleteRelationship,
   getLocalMembers,
-  getLocalRelations
+  getLocalRelations,
+  upsertProfile,
 } from './services/familyService';
 import { layoutFamilyTree } from './utils/treeLayout';
 
@@ -37,18 +38,6 @@ import { ConnectModal } from './components/ConnectModal';
 import { AdminView } from './components/AdminView';
 
 import { Plus, Minus, Maximize2, BookOpen, Heart, HeartOff } from 'lucide-react';
-
-const ADMIN_EMAIL = 'bucha810301@gmail.com';
-
-function buildProfile(user: { id: string; email?: string; created_at: string; user_metadata?: Record<string, string> }): Profile {
-  return {
-    id: user.id,
-    email: user.email ?? '',
-    name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? '사용자',
-    role: user.email === ADMIN_EMAIL ? 'admin' : 'member',
-    createdAt: user.created_at,
-  };
-}
 
 const nodeTypes = { familyNode: FamilyNode };
 
@@ -188,14 +177,29 @@ export default function App() {
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) setUserProfile(buildProfile(session.user));
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        const profile = await upsertProfile({
+          id: u.id,
+          email: u.email ?? '',
+          name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? '사용자',
+        });
+        setUserProfile(profile);
+      }
       setAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        setUserProfile(buildProfile(session.user));
+        const u = session.user;
+        const profile = await upsertProfile({
+          id: u.id,
+          email: u.email ?? '',
+          name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? '사용자',
+        });
+        setUserProfile(profile);
+        setAuthLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setUserProfile(null);
       }

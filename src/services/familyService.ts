@@ -1,23 +1,59 @@
 import { supabase } from '../lib/supabase';
 import { FamilyMember, Relationship, Profile } from '../types';
 
-const LOCAL_PROFILES_KEY = 'younggwang_profiles';
+const ADMIN_EMAIL = 'bucha810301@gmail.com';
 
-function getLocalProfiles(): Profile[] {
-  try { return JSON.parse(localStorage.getItem(LOCAL_PROFILES_KEY) ?? '[]'); } catch { return []; }
-}
-function setLocalProfiles(p: Profile[]) {
-  try { localStorage.setItem(LOCAL_PROFILES_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+export async function upsertProfile(user: { id: string; email: string; name: string }): Promise<Profile> {
+  try {
+    await supabase.from('profiles').upsert(
+      { id: user.id, email: user.email, name: user.name },
+      { onConflict: 'id' }
+    );
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (error) throw error;
+    return {
+      id: data.id,
+      email: data.email ?? user.email,
+      name: data.name ?? user.name,
+      role: user.email === ADMIN_EMAIL ? 'admin' : (data.role ?? 'member'),
+      createdAt: data.created_at,
+    };
+  } catch (err) {
+    console.warn('upsertProfile 실패, 기본값 사용:', err);
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.email === ADMIN_EMAIL ? 'admin' : 'member',
+      createdAt: new Date().toISOString(),
+    };
+  }
 }
 
 export async function getAllProfiles(): Promise<Profile[]> {
-  return getLocalProfiles();
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at');
+    if (error) throw error;
+    return (data ?? []).map(row => ({
+      id: row.id,
+      email: row.email ?? '',
+      name: row.name ?? '',
+      role: row.role ?? 'member',
+      createdAt: row.created_at,
+    }));
+  } catch {
+    return [];
+  }
 }
+
 export async function updateProfileRole(userId: string, role: 'admin' | 'member'): Promise<void> {
-  setLocalProfiles(getLocalProfiles().map(p => p.id === userId ? { ...p, role } : p));
+  const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
+  if (error) throw error;
 }
+
 export async function deleteProfile(userId: string): Promise<void> {
-  setLocalProfiles(getLocalProfiles().filter(p => p.id !== userId));
+  const { error } = await supabase.from('profiles').delete().eq('id', userId);
+  if (error) throw error;
 }
 
 const LOCAL_MEMBERS_KEY = 'younggwang_family_members';
