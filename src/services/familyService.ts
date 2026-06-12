@@ -3,29 +3,51 @@ import { FamilyMember, Relationship, Profile } from '../types';
 
 const ADMIN_EMAIL = 'bucha810301@gmail.com';
 
-export async function upsertProfile(user: { id: string; email: string; name: string }): Promise<Profile> {
+export async function upsertProfile(user: { id: string; email: string; name: string }): Promise<{ profile: Profile; isNew: boolean }> {
   try {
-    await supabase.from('profiles').upsert(
-      { id: user.id, email: user.email, name: user.name },
-      { onConflict: 'id' }
-    );
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data: existing } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+
+    if (existing) {
+      return {
+        profile: {
+          id: existing.id,
+          email: user.email,
+          name: existing.name ?? user.name,
+          role: user.email === ADMIN_EMAIL ? 'admin' : (existing.role ?? 'member'),
+          createdAt: existing.created_at,
+        },
+        isNew: false,
+      };
+    }
+
+    const defaultRole = user.email === ADMIN_EMAIL ? 'admin' : 'member';
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert({ id: user.id, email: user.email, name: user.name, role: defaultRole })
+      .select()
+      .single();
     if (error) throw error;
     return {
-      id: data.id,
-      email: data.email ?? user.email,
-      name: data.name ?? user.name,
-      role: user.email === ADMIN_EMAIL ? 'admin' : (data.role ?? 'member'),
-      createdAt: data.created_at,
+      profile: {
+        id: data.id,
+        email: data.email ?? user.email,
+        name: data.name ?? user.name,
+        role: defaultRole,
+        createdAt: data.created_at,
+      },
+      isNew: true,
     };
   } catch (err) {
     console.warn('upsertProfile 실패, 기본값 사용:', err);
     return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.email === ADMIN_EMAIL ? 'admin' : 'member',
-      createdAt: new Date().toISOString(),
+      profile: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.email === ADMIN_EMAIL ? 'admin' : 'member',
+        createdAt: new Date().toISOString(),
+      },
+      isNew: false,
     };
   }
 }

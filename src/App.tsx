@@ -36,6 +36,7 @@ import { DetailPanel } from './components/DetailPanel';
 import { MemberModal } from './components/MemberModal';
 import { ConnectModal } from './components/ConnectModal';
 import { AdminView } from './components/AdminView';
+import { NameConfirmModal } from './components/NameConfirmModal';
 
 import { Plus, Minus, Maximize2, BookOpen, Heart, HeartOff } from 'lucide-react';
 
@@ -160,6 +161,7 @@ function SearchFitter({ targetId }: { targetId: string | null }) {
 export default function App() {
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [pendingProfile, setPendingProfile] = useState<Profile | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>(() => getLocalMembers());
   const [relationships, setRelationships] = useState<Relationship[]>(() => getLocalRelations());
   const [loading, setLoading] = useState(false);
@@ -180,12 +182,16 @@ export default function App() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         const u = session.user;
-        const profile = await upsertProfile({
+        const { profile, isNew } = await upsertProfile({
           id: u.id,
           email: u.email ?? '',
-          name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? '사용자',
+          name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.user_metadata?.nickname ?? u.email?.split('@')[0] ?? '사용자',
         });
-        setUserProfile(profile);
+        if (isNew && u.app_metadata?.provider === 'kakao') {
+          setPendingProfile(profile);
+        } else {
+          setUserProfile(profile);
+        }
       }
       setAuthLoading(false);
     });
@@ -193,12 +199,16 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         const u = session.user;
-        const profile = await upsertProfile({
+        const { profile, isNew } = await upsertProfile({
           id: u.id,
           email: u.email ?? '',
-          name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? '사용자',
+          name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.user_metadata?.nickname ?? u.email?.split('@')[0] ?? '사용자',
         });
-        setUserProfile(profile);
+        if (isNew && u.app_metadata?.provider === 'kakao') {
+          setPendingProfile(profile);
+        } else {
+          setUserProfile(profile);
+        }
         setAuthLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setUserProfile(null);
@@ -421,6 +431,13 @@ export default function App() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f2744 100%)' }}>
       <div className="w-10 h-10 rounded-full border-[3px] border-[#c5a059] border-t-transparent animate-spin" />
     </div>
+  );
+
+  if (pendingProfile) return (
+    <NameConfirmModal
+      profile={pendingProfile}
+      onConfirm={confirmed => { setPendingProfile(null); setUserProfile(confirmed); }}
+    />
   );
 
   if (!userProfile) return <LoginView onLoginSuccess={setUserProfile} />;
