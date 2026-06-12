@@ -50,14 +50,15 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     if (error) alert('로그인 오류: ' + error.message);
   };
 
-  const handleSocialLogin = (role: 'admin' | 'member') => {
-    onLoginSuccess({
-      id: 'guest_' + role + '_' + Math.random().toString(36).substring(2, 9),
-      email: role === 'admin' ? 'bucha810301@gmail.com' : 'member@younggwang.org',
-      name: role === 'admin' ? '김성수 (관리자)' : '김철수 (회원)',
-      role,
-      createdAt: new Date().toISOString(),
-    });
+  const handleNaverLogin = () => {
+    const clientId = 'ZnMn_9J50myeot_jOVbl';
+    const callbackUrl = 'https://lkbceygubbxoldqvuezf.supabase.co/functions/v1/naver-auth';
+    const naverAuthUrl =
+      `https://nid.naver.com/oauth2.0/authorize?response_type=code` +
+      `&client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+      `&state=naver_login`;
+    window.location.href = naverAuthUrl;
   };
 
   return (
@@ -127,7 +128,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
             </button>
 
             <button
-              onClick={() => handleSocialLogin('member')}
+              onClick={handleNaverLogin}
               className="w-full flex items-center space-x-3 py-3 px-4 rounded-xl transition-all text-sm font-medium text-white cursor-pointer"
               style={{ background: '#03C75A' }}
             >

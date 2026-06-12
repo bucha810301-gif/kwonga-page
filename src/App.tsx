@@ -187,7 +187,11 @@ export default function App() {
           email: u.email ?? '',
           name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.user_metadata?.nickname ?? u.email?.split('@')[0] ?? '사용자',
         });
-        if (isNew && u.app_metadata?.provider === 'kakao') {
+        const needsNameConfirm = isNew && (
+          u.app_metadata?.provider === 'kakao' ||
+          u.user_metadata?.provider === 'naver'
+        );
+        if (needsNameConfirm) {
           setPendingProfile(profile);
         } else {
           setUserProfile(profile);
@@ -204,7 +208,11 @@ export default function App() {
           email: u.email ?? '',
           name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.user_metadata?.nickname ?? u.email?.split('@')[0] ?? '사용자',
         });
-        if (isNew && u.app_metadata?.provider === 'kakao') {
+        const needsNameConfirm = isNew && (
+          u.app_metadata?.provider === 'kakao' ||
+          u.user_metadata?.provider === 'naver'
+        );
+        if (needsNameConfirm) {
           setPendingProfile(profile);
         } else {
           setUserProfile(profile);
