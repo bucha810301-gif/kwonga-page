@@ -42,6 +42,14 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     if (error) alert('로그인 오류: ' + error.message);
   };
 
+  const handleKakaoLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) alert('로그인 오류: ' + error.message);
+  };
+
   const handleSocialLogin = (role: 'admin' | 'member') => {
     onLoginSuccess({
       id: 'guest_' + role + '_' + Math.random().toString(36).substring(2, 9),
@@ -106,7 +114,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
             </button>
 
             <button
-              onClick={() => handleSocialLogin('member')}
+              onClick={handleKakaoLogin}
               className="w-full flex items-center space-x-3 py-3 px-4 rounded-xl transition-all text-sm font-medium cursor-pointer"
               style={{ background: '#FEE500', color: '#191919' }}
             >
