@@ -136,6 +136,18 @@ function FlowControls({ isAdmin, onAddMember, hideSpouses, onToggleSpouses }: {
   );
 }
 
+// Pans the viewport to the clicked position on the minimap (must be inside ReactFlow context)
+function PannableMiniMap(props: React.ComponentProps<typeof MiniMap>) {
+  const { setCenter, getZoom } = useReactFlow();
+
+  return (
+    <MiniMap
+      {...props}
+      onClick={(_, position) => setCenter(position.x, position.y, { zoom: getZoom(), duration: 400 })}
+    />
+  );
+}
+
 // Zooms to a single highlighted node (must be inside ReactFlow context)
 function SearchFitter({ targetId }: { targetId: string | null }) {
   const { fitView } = useReactFlow();
@@ -528,8 +540,10 @@ export default function App() {
                 className="bg-cultural-canvas"
               >
                 <Background color="#e2e8f0" gap={28} size={1} />
-                <MiniMap
+                <PannableMiniMap
                   position="top-right"
+                  pannable
+                  zoomable
                   nodeColor={(n: any) => {
                     if (n.data?.member?.isDeceased) return '#94a3b8';
                     return n.data?.member?.gender === 'male' ? '#3b82f6' : '#f43f5e';
