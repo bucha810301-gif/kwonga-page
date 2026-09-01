@@ -535,6 +535,7 @@ export default function App() {
                 onConnect={handleConnect}
                 nodeTypes={nodeTypes}
                 nodesDraggable={false}
+                minZoom={0.05}
                 fitView
                 fitViewOptions={{ padding: 0.2 }}
                 className="bg-cultural-canvas"
