@@ -161,7 +161,7 @@ export function AdminView({ members, relationships, isAdmin = false, onEdit, onD
       </div>
 
       {/* Desktop table */}
-      <div className="hidden md:flex flex-1 overflow-auto px-6 py-4">
+      <div className="hidden md:flex items-start flex-1 overflow-auto px-6 py-4 min-h-0">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full">
           <table className="w-full text-sm">
             <thead>
